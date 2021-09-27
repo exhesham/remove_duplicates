@@ -1,13 +1,16 @@
 from os import listdir
 from os.path import isfile, join
+import time
 import os
 import hashlib
 import re
 import argparse
 
 parser = argparse.ArgumentParser(description='scan directory and do something with the duplicated files.')
-parser.add_argument('--dir', help='A directory to scan for duplicated files', default="./", nargs=1, required=True)
-parser.add_argument('--recycle_bin', help='A directory used to move the duplicates', default=None, nargs=1, required=False)
+parser.add_argument('--dir', help='A directory to scan for duplicated files', default="./", nargs=1, action='store',
+                    required=True)
+parser.add_argument('--recycle_bin', help='A directory used to move the duplicates', default=None, nargs=1,
+                    action='store', required=True)
 parser.add_argument('--list_result', help='list the duplicated files', action='store_true')
 parser.add_argument('--remove_dups', help='remove duplicated files right away', action='store_true')
 parser.add_argument('--save_result', help='save the founded duplicates', action='store_true')
@@ -163,25 +166,25 @@ def merge_duplicates(dupsnames, hashes):
 
 def move_to_recycle_bin(files, recycle_bin):
     for f in files:
-        os.rename(f, os.path.join(recycle_bin, os.path.basename(f)))
+        os.rename(f, os.path.join(recycle_bin, os.path.basename(f) + '.' + int(time.time())))
 
 
 if __name__ == '__main__':
-
-    all_files = get_dir_all_files(files_dir)
-    try:
+    if not os.path.isdir(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
-    except:
-        pass
+    all_files = get_dir_all_files(files_dir)
+
+
     files_hash = get_files_hashes(all_files)
     get_all_hash_duplicates = get_all_duplicates_according_to_hash(files_hash)
     all_similar_names = get_all_similar_names(all_files)
 
     all_duplicate_files = merge_duplicates(all_similar_names, get_all_hash_duplicates)
     print('total duplicates to be deleted:', len(all_duplicate_files))
-    move_to_recycle_bin(all_duplicate_files, recycle_bin)
-    # print('will delete:')
     if save_result:
         save_to_file('\n'.join(all_similar_names), RESULT_FILE)
+    move_to_recycle_bin(all_duplicate_files, recycle_bin)
+    # print('will delete:')
+
     if list_result:
         print("\n".join(sorted(all_similar_names, key=os.path.basename)))
