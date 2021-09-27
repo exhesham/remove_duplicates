@@ -3,16 +3,30 @@ from os.path import isfile, join
 import os
 import hashlib
 import re
-import json
+import argparse
 
-load_from_cache = True
+parser = argparse.ArgumentParser(description='scan directory and do something with the duplicated files.')
+parser.add_argument('--dir', help='A directory to scan for duplicated files', default="./", nargs=1, required=True)
+parser.add_argument('--recycle_bin', help='A directory used to move the duplicates', default=None, nargs=1, required=False)
+parser.add_argument('--list_result', help='list the duplicated files', action='store_true')
+parser.add_argument('--remove_dups', help='remove duplicated files right away', action='store_true')
+parser.add_argument('--save_result', help='save the founded duplicates', action='store_true')
+parser.add_argument('--use_result', help='apply on the saved result only', action='store_true')
+parser.add_argument('--no_cache', help='dont read cached files', action='store_true')
+
+args = parser.parse_known_args()
+
 OUTPUT_DIR = '.\\output'
 
-files_dir = 'D:\\'
-recycle_bin = 'C:\\Users\\Hesham Asus\\Desktop\\dups'
+files_dir = args[0].dir[0]
+recycle_bin = args[0].recycle_bin[0]
+save_result = args[0].save_result
+list_result = args[0].list_result
+no_cache = args[0].no_cache
 
-FILES_IN_DIR_CACHE_NAME = 'files_to_process - ' + hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
-FILES_HASHES_CACHE_NAME = 'files_hashes - ' + hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
+FILES_IN_DIR_CACHE_NAME = 'files_to_process-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
+FILES_HASHES_CACHE_NAME = 'files_hashes-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
+RESULT_FILE = 'saved_result-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
 
 
 def read_text_file(filename):
@@ -41,9 +55,9 @@ def save_to_file(text, filename):
 
 
 def get_dir_all_files(path):
-    if load_from_cache:
+    if no_cache is False:
         cached_files = read_text_file(FILES_IN_DIR_CACHE_NAME)
-        if cached_files is not None:
+        if cached_files is not None and len(cached_files) > 0:
             print('found ', len(cached_files), ' cached files')
             return cached_files
     files = []
@@ -81,6 +95,8 @@ def get_files_hashes(files):
             return {splitted[0]: splitted[1]}
 
     global imported_hashes
+
+    print('calculating hashes...may take time...')
     if imported_hashes is None:
         text = read_text_file(FILES_HASHES_CACHE_NAME)
         if text is not None and len(text) > 0:
@@ -165,4 +181,7 @@ if __name__ == '__main__':
     print('total duplicates to be deleted:', len(all_duplicate_files))
     move_to_recycle_bin(all_duplicate_files, recycle_bin)
     # print('will delete:')
-    print("\n".join(sorted(all_similar_names, key=os.path.basename)))
+    if save_result:
+        save_to_file('\n'.join(all_similar_names), RESULT_FILE)
+    if list_result:
+        print("\n".join(sorted(all_similar_names, key=os.path.basename)))
