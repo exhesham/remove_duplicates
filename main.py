@@ -5,31 +5,33 @@ import os
 import hashlib
 import re
 import argparse
-
+from codecs import encode, decode
 parser = argparse.ArgumentParser(description='scan directory and do something with the duplicated files.')
 parser.add_argument('--dir', help='A directory to scan for duplicated files', default="./", nargs=1, action='store',
                     required=True)
 parser.add_argument('--recycle_bin', help='A directory used to move the duplicates', default=None, nargs=1,
-                    action='store', required=True)
+                    action='store', required=False)
 parser.add_argument('--list_result', help='list the duplicated files', action='store_true')
 parser.add_argument('--remove_dups', help='remove duplicated files right away', action='store_true')
 parser.add_argument('--save_result', help='save the founded duplicates', action='store_true')
 parser.add_argument('--use_result', help='apply on the saved result only', action='store_true')
-parser.add_argument('--no_cache', help='dont read cached files', action='store_true')
+parser.add_argument('--use_cached_files_list', help='use cached files list without recursively scanning the directory',
+                    action='store_true')
 
 args = parser.parse_known_args()
 
-OUTPUT_DIR = '.\\output'
-
 files_dir = args[0].dir[0]
 recycle_bin = args[0].recycle_bin[0]
+move_to_recycle = False
 save_result = args[0].save_result
 list_result = args[0].list_result
-no_cache = args[0].no_cache
+remove_dups = args[0].remove_dups
+use_cached_files_list = args[0].use_cached_files_list
 
 FILES_IN_DIR_CACHE_NAME = 'files_to_process-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
 FILES_HASHES_CACHE_NAME = 'files_hashes-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
 RESULT_FILE = 'saved_result-%s.txt' % hashlib.sha256(files_dir.encode('utf-8')).hexdigest()
+OUTPUT_DIR = os.path.join(files_dir, 'output')
 
 
 def read_text_file(filename):
@@ -58,7 +60,7 @@ def save_to_file(text, filename):
 
 
 def get_dir_all_files(path):
-    if no_cache is False:
+    if use_cached_files_list is True:
         cached_files = read_text_file(FILES_IN_DIR_CACHE_NAME)
         if cached_files is not None and len(cached_files) > 0:
             print('found ', len(cached_files), ' cached files')
@@ -95,7 +97,7 @@ def get_files_hashes(files):
     def hash_formatter(text):
         if text is not None:
             splitted = text.split('<@>')
-            return {splitted[0]: splitted[1]}
+            return {os.path.normpath(splitted[1]): splitted[0]}
 
     global imported_hashes
 
@@ -111,7 +113,7 @@ def get_files_hashes(files):
         print(index, "/", total, "   ", f, end="\r")
         index = index + 1
 
-        if imported_hashes is not None and f in imported_hashes:
+        if imported_hashes is not None and os.path.normpath(f) in imported_hashes:
             file_hash = imported_hashes[f]
         else:
             file_hash = sha256sum(f)
@@ -164,16 +166,21 @@ def merge_duplicates(dupsnames, hashes):
     return list(dict.fromkeys(hashes_files))
 
 
-def move_to_recycle_bin(files, recycle_bin):
+def handle_duplicated_files(files, recycle_bin):
     for f in files:
-        os.rename(f, os.path.join(recycle_bin, os.path.basename(f) + '.' + int(time.time())))
+        if remove_dups:
+            os.remove(f)
+        elif move_to_recycle:
+            os.rename(f, os.path.join(recycle_bin, os.path.basename(f) + '.' + str(time.time())))
+        if list_result:
+            print("\n".join(sorted(files, key=os.path.basename)))
+
 
 
 if __name__ == '__main__':
     if not os.path.isdir(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
     all_files = get_dir_all_files(files_dir)
-
 
     files_hash = get_files_hashes(all_files)
     get_all_hash_duplicates = get_all_duplicates_according_to_hash(files_hash)
@@ -183,8 +190,23 @@ if __name__ == '__main__':
     print('total duplicates to be deleted:', len(all_duplicate_files))
     if save_result:
         save_to_file('\n'.join(all_similar_names), RESULT_FILE)
-    move_to_recycle_bin(all_duplicate_files, recycle_bin)
+    if remove_dups is False and list_result is False and recycle_bin is False:
+        print('what do you want to do next?')
+        print('1. List results')
+        print('2. Move to recycle bin')
+        print('3. Quit')
+        while True:
+            selection = input('Enter your selection:')
+            if int(selection) in [1, 2, 3, 4]:
+                break;
+            if selection == 1:
+                list_result = True
+            if selection == 2:
+                move_to_recycle = True
+            if selection == 3:
+                remove_dups = True
+
+    handle_duplicated_files(all_duplicate_files, recycle_bin)
     # print('will delete:')
 
-    if list_result:
-        print("\n".join(sorted(all_similar_names, key=os.path.basename)))
+
