@@ -1,5 +1,4 @@
 import json
-from os import listdir
 import mimetypes
 import time
 import os
