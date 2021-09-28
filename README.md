@@ -1,6 +1,6 @@
 # Spot duplicated audio files
 
-The goal of this app is to find duplicated music files and do something about them.
+The goal of this script is to find duplicated music files and do something about them.
 
 The files are spotted according to:
 1. Identical file name
@@ -39,3 +39,4 @@ python music_duplicates.py --dir "C:\Users\Hesham\Music\atb" --recycle_bin "D:\d
 ```
 python music_duplicates.py --dir "C:\Users\Hesham\Music\atb" --list_result --save_result --operation=none
 ```
+
