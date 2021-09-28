@@ -13,8 +13,10 @@ you can decide either to use all of these criterions or to use a specific one by
 
 You need python 3.x to run this app.
 
+1. install python 3.x
+2. install pip
 ```
-pip install eye3d 
+pip install eyed3 
 ```
 
 ## Arguments:
